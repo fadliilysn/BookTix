@@ -39,11 +39,14 @@ class MidtransWebhookController extends Controller
         }
 
         // ── 2. CARI ORDER ────────────────────────────────────────────────
-        // order_id di Midtrans = ID order kita (pastikan format sama saat create transaksi)
-        $orderCode = preg_replace('/-\d+$/', '', $orderId);
-
+        // order_id di Midtrans = "{order_code}-{timestamp}" (timestamp = 10 digit Unix)
+        // Gunakan LIKE agar aman meski order_code mengandung angka di akhir
         $order = Order::with(['items.event', 'payment'])
-                    ->where('order_code', $orderCode)
+                    ->where('order_code', $orderId)
+                    ->orWhere(function ($q) use ($orderId) {
+                        // Hapus suffix "-{10 digit timestamp}" di akhir
+                        $q->whereRaw("? LIKE CONCAT(order_code, '-%')", [$orderId]);
+                    })
                     ->first();
 
         if (!$order) {
@@ -75,17 +78,19 @@ class MidtransWebhookController extends Controller
 
             // Jika belum berubah ke status yang sama, update order
             if ($order->status !== $orderStatus) {
+                $previousStatus = $order->status;
                 $order->update(['status' => $orderStatus]);
-            }
 
-            // ── 5. GENERATE TIKET JIKA PEMBAYARAN SUKSES ──────────────
-            if ($orderStatus === 'paid' && $order->tickets()->count() === 0) {
-                $this->generateTickets($order);
-            }
+                // ── 5. GENERATE TIKET JIKA PEMBAYARAN SUKSES ──────────────
+                if ($orderStatus === 'paid' && $order->tickets()->count() === 0) {
+                    $this->generateTickets($order);
+                }
 
-            // ── 6. KEMBALIKAN QUOTA JIKA CANCELLED/EXPIRED ────────────
-            if (in_array($orderStatus, ['cancelled'])) {
-                $this->restoreQuota($order);
+                // ── 6. KEMBALIKAN QUOTA JIKA CANCELLED/EXPIRED ────────────
+                // Hanya restore jika sebelumnya bukan cancelled (hindari double restore)
+                if ($orderStatus === 'cancelled' && $previousStatus !== 'cancelled') {
+                    $this->restoreQuota($order);
+                }
             }
         });
 
@@ -149,7 +154,9 @@ class MidtransWebhookController extends Controller
                 Ticket::create([
                     'order_id'    => $order->id,
                     'event_id'    => $item->event_id,
+                    'user_id'     => $order->user_id,
                     'ticket_code' => $this->generateUniqueCode($item->event_id),
+                    'status'      => 'unused',
                 ]);
             }
         }

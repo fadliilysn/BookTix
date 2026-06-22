@@ -4,6 +4,8 @@
 
 @section('content')
 
+@php use Illuminate\Support\Facades\Storage; @endphp
+
 <style>
     /* ── HERO ── */
     .hero {
@@ -568,8 +570,12 @@
 
         @forelse($events->take(3) as $i => $event)
         <div class="ticket-preview">
-            <div class="ticket-emoji" style="background:{{ $colors[$i % count($colors)] }};">
-                {{ $emojis[$i % count($emojis)] }}
+            <div class="ticket-emoji" style="background:{{ $colors[$i % count($colors)] }};overflow:hidden;padding:0;">
+                @if($event->image)
+                    <img src="{{ asset('storage/' . $event->image) }}" style="width:48px;height:48px;object-fit:cover;border-radius:12px;">
+                @else
+                    {{ $emojis[$i % count($emojis)] }}
+                @endif
             </div>
             <div class="ticket-info">
                 <div class="ticket-name">{{ Str::limit($event->title, 25) }}</div>
@@ -641,8 +647,13 @@
             $eventDate = $event->event_date ? \Carbon\Carbon::parse($event->event_date) : null;
         @endphp
         <a href="{{ route('events.show', $event) }}" class="event-card">
-            <div class="event-thumb">
-                🎪
+            <div class="event-thumb" style="{{ $event->image ? 'padding:0;font-size:0;' : '' }}">
+                @if($event->image)
+                    <img src="{{ asset('storage/' . $event->image) }}"
+                        style="width:100%;height:100%;object-fit:cover;display:block;">
+                @else
+                    🎪
+                @endif
                 <span class="event-quota-badge {{ $quotaClass }}">{{ $quotaLabel }}</span>
             </div>
             <div class="event-body">

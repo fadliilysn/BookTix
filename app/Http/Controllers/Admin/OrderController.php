@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Ticket;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
@@ -52,8 +55,47 @@ class OrderController extends Controller
             'status' => 'required|in:pending,paid,cancelled',
         ]);
 
-        $order->update(['status' => $request->status]);
+        $newStatus      = $request->status;
+        $previousStatus = $order->status;
 
-        return back()->with('success', 'Order status updated successfully.');
+        // Tidak ada perubahan, skip
+        if ($previousStatus === $newStatus) {
+            return back()->with('success', 'Status order tidak berubah.');
+        }
+
+        DB::transaction(function () use ($order, $newStatus, $previousStatus) {
+            $order->update(['status' => $newStatus]);
+
+            // Restore quota jika di-cancel (dan sebelumnya bukan cancelled)
+            if ($newStatus === 'cancelled' && $previousStatus !== 'cancelled') {
+                foreach ($order->items as $item) {
+                    if ($item->event) {
+                        $item->event->increment('available_quota', $item->quantity);
+                    }
+                }
+            }
+
+            // Generate tiket jika admin set ke paid dan belum ada tiket
+            if ($newStatus === 'paid' && $order->tickets()->count() === 0) {
+                $order->load('items.event');
+                foreach ($order->items as $item) {
+                    for ($i = 0; $i < $item->quantity; $i++) {
+                        do {
+                            $code = 'BTX-' . $item->event_id . '-' . strtoupper(Str::random(8));
+                        } while (Ticket::where('ticket_code', $code)->exists());
+
+                        Ticket::create([
+                            'order_id'    => $order->id,
+                            'event_id'    => $item->event_id,
+                            'user_id'     => $order->user_id,
+                            'ticket_code' => $code,
+                            'status'      => 'unused',
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return back()->with('success', 'Status order berhasil diperbarui.');
     }
 }

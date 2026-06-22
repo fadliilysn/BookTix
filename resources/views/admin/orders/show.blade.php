@@ -469,19 +469,25 @@
             <div class="payment-grid">
                 <div class="pay-row">
                     <span class="pay-key">Method</span>
-                    <span class="pay-val">{{ ucfirst($order->payment->payment_method) }}</span>
+                    <span class="pay-val">{{ ucfirst($order->payment->payment_type ?? '-') }}</span>
                 </div>
                 <div class="divider-line"></div>
                 <div class="pay-row">
-                    <span class="pay-key">Amount</span>
-                    <span class="pay-val">Rp {{ number_format($order->payment->amount, 0, ',', '.') }}</span>
+                    <span class="pay-key">Transaction ID</span>
+                    <span class="pay-val" style="font-size:11px;word-break:break-all;">
+                        {{ $order->payment->transaction_id ?? '-' }}
+                    </span>
                 </div>
                 <div class="divider-line"></div>
                 <div class="pay-row">
                     <span class="pay-key">Status</span>
                     <span class="pay-val">
-                        <span class="status-badge {{ $order->payment->status === 'paid' ? 'paid' : 'pending' }}" style="padding:3px 10px;font-size:11px;">
-                            {{ ucfirst($order->payment->status) }}
+                        @php
+                            $pStatus = $order->payment->transaction_status ?? 'pending';
+                            $pClass  = in_array($pStatus, ['settlement', 'capture']) ? 'paid' : ($pStatus === 'pending' ? 'pending' : 'cancelled');
+                        @endphp
+                        <span class="status-badge {{ $pClass }}" style="padding:3px 10px;font-size:11px;">
+                            {{ ucfirst($pStatus) }}
                         </span>
                     </span>
                 </div>

@@ -336,19 +336,25 @@
         <div class="info-grid">
             <div>
                 <div class="info-label">Metode</div>
-                <div class="info-value">{{ ucfirst($order->payment->payment_method) }}</div>
+                <div class="info-value">{{ ucfirst($order->payment->payment_type ?? '-') }}</div>
             </div>
             <div>
                 <div class="info-label">Status</div>
                 <div class="info-value">
-                    <span class="status-badge {{ $order->payment->status === 'paid' ? 'paid' : 'pending' }}" style="padding:3px 10px;font-size:11px;">
-                        {{ ucfirst($order->payment->status) }}
+                    @php
+                        $pStatus = $order->payment->transaction_status ?? 'pending';
+                        $pClass  = in_array($pStatus, ['settlement', 'capture']) ? 'paid' : ($pStatus === 'pending' ? 'pending' : 'cancelled');
+                    @endphp
+                    <span class="status-badge {{ $pClass }}" style="padding:3px 10px;font-size:11px;">
+                        {{ ucfirst($pStatus) }}
                     </span>
                 </div>
             </div>
             <div>
-                <div class="info-label">Jumlah</div>
-                <div class="info-value">Rp {{ number_format($order->payment->amount, 0, ',', '.') }}</div>
+                <div class="info-label">Transaction ID</div>
+                <div class="info-value" style="font-size:12px;word-break:break-all;">
+                    {{ $order->payment->transaction_id ?? '-' }}
+                </div>
             </div>
             <div>
                 <div class="info-label">Tanggal</div>

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Event;
 
 class EventController extends Controller
@@ -28,10 +30,16 @@ class EventController extends Controller
             'event_date' => 'required|date',
             'price' => 'required|integer',
             'quota' => 'required|integer',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
-        $validated['available_quota'] = $validated['quota'];
-        $validated['created_by'] = auth()->id();
+        $validated['available_quota']   = $validated['quota'];
+        $validated['created_by']        = auth()->id();
+        $validated['slug']              = Str::slug($validated['title']) . '-' . uniqid();
+        
+        if ($request->hasFile('image')) {
+            $validated['image'] = $request->file('image')->store('events', 'public');
+        }
 
         Event::create($validated);
 
@@ -53,7 +61,24 @@ class EventController extends Controller
             'event_date' => 'required|date',
             'price' => 'required|integer',
             'quota' => 'required|integer',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
+
+        if ($validated['title'] !== $event->title) {
+            $validated['slug'] = Str::slug($validated['title']) . '-' . uniqid();
+        }
+
+        // Hapus gambar kalau diminta
+        if ($request->input('remove_image') == '1' && $event->image) {
+            Storage::disk('public')->delete($event->image);
+            $validated['image'] = null;
+        }
+
+        // Atau ganti dengan gambar baru
+        if ($request->hasFile('image')) {
+            if ($event->image) Storage::disk('public')->delete($event->image);
+            $validated['image'] = $request->file('image')->store('events', 'public');
+        }
 
         // Jika quota dinaikkan, sesuaikan available_quota
         if ($validated['quota'] > $event->quota) {

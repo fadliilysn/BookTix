@@ -269,6 +269,37 @@
         font-weight: 500;
         margin-left: auto;
     }
+     /* Current image preview */
+    .current-image-wrap {
+        position: relative;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+    .current-image-wrap img {
+        width: 100%;
+        max-height: 220px;
+        object-fit: cover;
+        border-radius: 10px;
+        display: block;
+    }
+    .current-image-label {
+        position: absolute;
+        top: 8px; left: 8px;
+        background: rgba(0,0,0,0.55);
+        color: white;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 20px;
+    }
+    .remove-image-btn {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 12px; color: #ef4444;
+        background: none; border: none; cursor: pointer;
+        padding: 0; margin-top: 6px;
+        font-family: 'DM Sans', sans-serif;
+    }
+    .remove-image-btn:hover { text-decoration: underline; }
 </style>
 
 <div class="form-page-header">
@@ -297,13 +328,13 @@
 </div>
 @endif
 
-<form action="{{ route('admin.events.update', $event) }}" method="POST" id="editForm">
+<form action="{{ route('admin.events.update', $event) }}" method="POST" id="editForm" enctype="multipart/form-data">
 @csrf
 @method('PUT')
 
 <div class="form-layout">
 
-    <!-- Main Form -->
+    <!-- ── MAIN FORM ── -->
     <div style="display:flex;flex-direction:column;gap:20px;">
 
         <!-- Basic Info -->
@@ -319,24 +350,19 @@
                            class="input {{ $errors->has('title') ? 'is-invalid' : '' }}"
                            value="{{ old('title', $event->title) }}"
                            placeholder="e.g. Tech Summit 2025">
-                    @error('title')
-                        <span class="field-error">⚠ {{ $message }}</span>
-                    @enderror
+                    @error('title')<span class="field-error">⚠ {{ $message }}</span>@enderror
                 </div>
-
                 <div class="field">
                     <label for="description">Description</label>
                     <textarea id="description" name="description"
                               class="textarea {{ $errors->has('description') ? 'is-invalid' : '' }}"
                               placeholder="Describe your event...">{{ old('description', $event->description) }}</textarea>
-                    @error('description')
-                        <span class="field-error">⚠ {{ $message }}</span>
-                    @enderror
+                    @error('description')<span class="field-error">⚠ {{ $message }}</span>@enderror
                 </div>
             </div>
         </div>
 
-        <!-- Details -->
+        <!-- Event Details -->
         <div class="form-card">
             <div class="form-card-header">
                 <div class="form-card-icon">📍</div>
@@ -349,21 +375,15 @@
                            class="input {{ $errors->has('location') ? 'is-invalid' : '' }}"
                            value="{{ old('location', $event->location) }}"
                            placeholder="e.g. Jakarta Convention Center">
-                    @error('location')
-                        <span class="field-error">⚠ {{ $message }}</span>
-                    @enderror
+                    @error('location')<span class="field-error">⚠ {{ $message }}</span>@enderror
                 </div>
-
                 <div class="field">
                     <label for="event_date">Date & Time <span class="required">*</span></label>
                     <input id="event_date" type="datetime-local" name="event_date"
                            class="input {{ $errors->has('event_date') ? 'is-invalid' : '' }}"
                            value="{{ old('event_date', $event->event_date ? \Carbon\Carbon::parse($event->event_date)->format('Y-m-d\TH:i') : '') }}">
-                    @error('event_date')
-                        <span class="field-error">⚠ {{ $message }}</span>
-                    @enderror
+                    @error('event_date')<span class="field-error">⚠ {{ $message }}</span>@enderror
                 </div>
-
                 <div class="field-row">
                     <div class="field">
                         <label for="price">Price <span class="required">*</span></label>
@@ -374,24 +394,18 @@
                                    value="{{ old('price', $event->price) }}"
                                    placeholder="0" min="0">
                         </div>
-                        @error('price')
-                            <span class="field-error">⚠ {{ $message }}</span>
-                        @enderror
+                        @error('price')<span class="field-error">⚠ {{ $message }}</span>@enderror
                     </div>
-
                     <div class="field">
                         <label for="quota">Max Attendees <span class="required">*</span></label>
                         <input id="quota" type="number" name="quota"
                                class="input {{ $errors->has('quota') ? 'is-invalid' : '' }}"
                                value="{{ old('quota', $event->quota) }}"
                                placeholder="100" min="1">
-                        @error('quota')
-                            <span class="field-error">⚠ {{ $message }}</span>
-                        @enderror
+                        @error('quota')<span class="field-error">⚠ {{ $message }}</span>@enderror
                     </div>
                 </div>
             </div>
-
             @if($event->updated_at)
             <div class="last-updated">
                 <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -402,10 +416,60 @@
             @endif
         </div>
 
+        <!-- Image Upload -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-icon">🖼️</div>
+                <div class="form-card-title">Event Image</div>
+            </div>
+            <div class="form-card-body">
+                <div class="field">
+                    <label>Poster / Banner Event</label>
+
+                    {{-- Tampilkan gambar yang sudah ada --}}
+                    @if($event->image)
+                    <div class="current-image-wrap" id="currentImageWrap">
+                        <img src="{{ Storage::url($event->image) }}" alt="{{ $event->title }}">
+                        <span class="current-image-label">Gambar saat ini</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                        <button type="button" class="remove-image-btn" onclick="toggleRemoveImage()">
+                            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                            </svg>
+                            <span id="removeImageLabel">Hapus gambar ini</span>
+                        </button>
+                        <input type="hidden" name="remove_image" id="removeImageInput" value="0">
+                    </div>
+                    @endif
+
+                    {{-- Drop zone untuk upload baru --}}
+                    <div class="drop-zone {{ $event->image ? '' : '' }}" id="dropZone"
+                         onclick="document.getElementById('image').click()">
+                        <div id="previewWrap" style="display:none;margin-bottom:12px;">
+                            <img id="imagePreview" src="" style="max-height:220px;border-radius:8px;max-width:100%;object-fit:cover;">
+                            <div style="margin-top:8px;font-size:12px;color:#6b7280;">Klik untuk ganti gambar</div>
+                        </div>
+                        <div id="uploadPrompt">
+                            <div style="font-size:36px;margin-bottom:8px;">📸</div>
+                            <div style="font-size:14px;font-weight:500;color:#374151;">
+                                {{ $event->image ? 'Klik untuk ganti gambar' : 'Klik untuk upload gambar' }}
+                            </div>
+                            <div style="font-size:12px;color:#9ca3af;margin-top:4px;">PNG, JPG, WEBP — Maks. 2MB</div>
+                        </div>
+                        <input id="image" type="file" name="image" accept="image/*"
+                               style="display:none;" onchange="previewImage(this)">
+                    </div>
+                    <span class="field-hint">Recommended size: 1200x600px (landscape)</span>
+                    @error('image')<span class="field-error">⚠ {{ $message }}</span>@enderror
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Sidebar -->
-    <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:0;">
+    <!-- ── SIDEBAR ── -->
+    <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:20px;">
         <div class="sidebar-card">
             <div class="form-card-header">
                 <div class="form-card-icon">💾</div>
@@ -419,13 +483,10 @@
                     </svg>
                     Save Changes
                 </button>
-                <a href="{{ route('admin.events.index') }}" class="cancel-btn">
-                    Discard Changes
-                </a>
+                <a href="{{ route('admin.events.index') }}" class="cancel-btn">Discard Changes</a>
             </div>
         </div>
 
-        <!-- Danger Zone placeholder — form ada di luar form utama -->
         <div class="danger-zone">
             <div class="danger-zone-header">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -436,7 +497,6 @@
             </div>
             <div class="danger-zone-body">
                 <p class="danger-zone-desc">Deleting this event is permanent and cannot be undone. All registrations will also be removed.</p>
-                {{-- Tombol ini trigger form delete yang ada di luar form utama --}}
                 <button type="submit" form="deleteForm" class="delete-btn"
                         onclick="return confirm('Are you sure? This action cannot be undone.')">
                     <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -450,16 +510,45 @@
     </div>
 
 </div>
-
 </form>
 
-{{-- ✅ Form delete HARUS di luar form edit agar tidak nested --}}
-<form id="deleteForm"
-      action="{{ route('admin.events.destroy', $event) }}"
-      method="POST"
-      style="display:none;">
+<form id="deleteForm" action="{{ route('admin.events.destroy', $event) }}" method="POST" style="display:none;">
     @csrf
     @method('DELETE')
 </form>
+
+<script>
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            document.getElementById('imagePreview').src = e.target.result;
+            document.getElementById('previewWrap').style.display = 'block';
+            document.getElementById('uploadPrompt').style.display = 'none';
+            document.getElementById('dropZone').style.borderColor = '#6366f1';
+            document.getElementById('dropZone').style.background = '#f5f3ff';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function toggleRemoveImage() {
+    const input = document.getElementById('removeImageInput');
+    const label = document.getElementById('removeImageLabel');
+    const wrap  = document.getElementById('currentImageWrap');
+
+    if (input.value === '0') {
+        input.value = '1';
+        label.textContent = 'Batal hapus gambar';
+        wrap.style.opacity = '0.4';
+        wrap.style.filter = 'grayscale(1)';
+    } else {
+        input.value = '0';
+        label.textContent = 'Hapus gambar ini';
+        wrap.style.opacity = '1';
+        wrap.style.filter = 'none';
+    }
+}
+</script>
 
 @endsection

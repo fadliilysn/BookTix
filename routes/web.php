@@ -41,6 +41,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::post('/webhook/midtrans', [MidtransWebhookController::class, 'handle'])
     ->name('webhook.midtrans');
 
+Route::get('/admin', function () {
+    if (auth()->check() && auth()->user()->role === 'admin') {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect()->route('admin.login');
+});
+
 // ── ADMIN ────────────────────────────────────────────────────
 Route::middleware(['auth:admin', 'role:admin'])
     ->prefix('admin')
@@ -51,9 +58,10 @@ Route::middleware(['auth:admin', 'role:admin'])
             return view('admin.dashboardAdmin', compact('events'));
         })->name('dashboard');
 
-        Route::resource('events', AdminEventController::class); // ← pakai alias
+        Route::resource('events', AdminEventController::class) // ← pakai alias
+            -> parameters(['events' => 'event:slug']); 
 
-        Route::resource('orders', OrderController::class)->only(['index', 'show']);
+        Route::resource('orders', OrderController::class)->only(['index', 'show'])->parameters(['orders' => 'order:order_code']);
         Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
     });
 

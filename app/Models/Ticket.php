@@ -9,7 +9,9 @@ class Ticket extends Model
     protected $fillable = [
         'order_id',
         'event_id',
+        'user_id',
         'ticket_code',
+        'status',
     ];
 
     public function order()

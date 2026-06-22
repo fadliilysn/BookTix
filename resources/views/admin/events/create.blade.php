@@ -325,7 +325,7 @@
 </div>
 @endif
 
-<form action="{{ route('admin.events.store') }}" method="POST">
+<form action="{{ route('admin.events.store') }}" method="POST" enctype="multipart/form-data">
 @csrf
 
 <div class="form-layout">
@@ -369,6 +369,7 @@
                 <div class="form-card-icon">📍</div>
                 <div class="form-card-title">Event Details</div>
             </div>
+
             <div class="form-card-body">
                 <div class="field">
                     <label for="location">Location <span class="required">*</span></label>
@@ -421,6 +422,34 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Image Upload -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-icon">🖼️</div>
+                <div class="form-card-title">Event Image</div>
+            </div>
+            <div class="form-card-body">
+                <div class="field">
+                    <label for="image">Poster / Banner Event</label>
+                    <div id="dropZone" style="border:2px dashed #e5e7eb;border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;background:#f9fafb;" onclick="document.getElementById('image').click()">
+                        <div id="previewWrap" style="display:none;margin-bottom:12px;">
+                            <img id="imagePreview" src="" style="max-height:200px;border-radius:8px;max-width:100%;">
+                        </div>
+                        <div id="uploadPrompt">
+                            <div style="font-size:32px;margin-bottom:8px;">📸</div>
+                            <div style="font-size:14px;font-weight:500;color:#374151;">Klik untuk upload gambar</div>
+                            <div style="font-size:12px;color:#9ca3af;margin-top:4px;">PNG, JPG, WEBP — Maks. 2MB</div>
+                        </div>
+                        <input id="image" type="file" name="image" accept="image/*" style="display:none;" onchange="previewImage(this)">
+                    </div>
+                    <span class="field-hint">Recommended size: 1200x600px (landscape)</span>
+                    @error('image')
+                        <span class="field-error">⚠ {{ $message }}</span>
+                    @enderror
+                </div>
+            </div>
+        </div>
 
     </div>
 
@@ -463,4 +492,18 @@
 
 </form>
 
+<script>
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            document.getElementById('imagePreview').src = e.target.result;
+            document.getElementById('previewWrap').style.display = 'block';
+            document.getElementById('uploadPrompt').style.display = 'none';
+        };
+        reader.readAsDataURL(input.files[0]);
+        document.getElementById('dropZone').style.borderColor = '#6366f1';
+    }
+}
+</script>
 @endsection
